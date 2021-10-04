@@ -14,8 +14,8 @@ interface ProjectInputInterface {
 //   Class - ProjectInput
 // ********************************* //
 class ProjectInput implements ProjectInputInterface {
-    templateID = '';
-    hostElementID = '';
+    templateID = "";
+    hostElementID = "";
     templateElement;
     hostElement;
 
@@ -27,16 +27,23 @@ class ProjectInput implements ProjectInputInterface {
 
         // In case we have no templates than exit early.
         if (!templateElement || !hostElement) {
-            throw new Error('Id does not exists on DOM')
+            throw new Error("Id does not exists on DOM")
         }
 
-        // Get the template element content.
-        this.templateElement = <HTMLTemplateElement> templateElement;
-        const templateCloneContent = this.templateElement.content.cloneNode(true);
-
-        // Append the cloned template content into the host element.
+        this.templateElement = templateElement as HTMLTemplateElement;
         this.hostElement = hostElement;
-        this.hostElement.appendChild(templateCloneContent);
+
+        // Get the template element content.
+        const templateCloneElement = document.importNode(this.templateElement.content ,true);
+        const element = templateCloneElement.firstElementChild as HTMLElement;
+
+        // Render to the DOM.
+        this.renderProjectInput(element);
+    }
+    
+    private renderProjectInput(element: HTMLElement){
+        // Append the cloned template content into the host element.
+         this.hostElement.insertAdjacentElement("afterbegin", element);
     }
 
 }
