@@ -1,54 +1,39 @@
-
-// ********************************* //
-//   Interface - ProjectInput
-// ********************************* //
-interface ProjectInputInterface {
-    templateID: string,
-    hostElementID: string,
-    templateElement?: HTMLTemplateElement,
-    hostElement?: HTMLElement,
-}
-
-
 // ********************************* //
 //   Class - ProjectInput
 // ********************************* //
-class ProjectInput implements ProjectInputInterface {
-    templateID = "";
-    hostElementID = "";
-    templateElement;
-    hostElement;
 
-    constructor(templateID: string, hostElementID: string){
-        this.templateID = templateID;
-        this.hostElementID = hostElementID;
-        const templateElement = document.getElementById(this.templateID);
-        const hostElement = document.getElementById(this.hostElementID);
+class ProjectInput {
+    templateElement: HTMLTemplateElement;
+    hostElement: HTMLElement;
+    projectInputFormElement: HTMLFormElement;
 
-        // In case we have no templates than exit early.
-        if (!templateElement || !hostElement) {
-            throw new Error("Id does not exists on DOM")
-        }
+    titleInputElement: HTMLInputElement;
+    descriptionInputElement: HTMLInputElement;
+    peopleInputElement: HTMLInputElement;
 
-        this.templateElement = templateElement as HTMLTemplateElement;
-        this.hostElement = hostElement;
+    constructor(templateElementID: string = "", hostElementID: string = ""){
+
+        this.templateElement = document.getElementById(templateElementID) as HTMLTemplateElement;
+        this.hostElement = document.getElementById(hostElementID)!;
 
         // Get the template element content.
         const templateCloneElement = document.importNode(this.templateElement.content ,true);
-        const element = templateCloneElement.firstElementChild as HTMLElement;
+        this.projectInputFormElement = templateCloneElement.firstElementChild as HTMLFormElement;
 
+        this.titleInputElement = this.projectInputFormElement.querySelector('#title')!;
+        this.descriptionInputElement = this.projectInputFormElement.querySelector('#description')!;
+        this.peopleInputElement = this.projectInputFormElement.querySelector('#people')!;
+        
         // Render to the DOM.
-        this.renderProjectInput(element);
+        this.renderProjectInput();
     }
     
-    private renderProjectInput(element: HTMLElement){
+    private renderProjectInput() {
         // Append the cloned template content into the host element.
-         this.hostElement.insertAdjacentElement("afterbegin", element);
+        this.projectInputFormElement.id = 'user-input';
+         this.hostElement.insertAdjacentElement("afterbegin",  this.projectInputFormElement);
     }
 
 }
 
 new ProjectInput('project-input','app');
-
- 
-// document.body.appendChild(clon);}  
