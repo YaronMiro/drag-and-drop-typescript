@@ -1,8 +1,21 @@
 
 enum ProjectStatus {
-    ACTIVE = "active",
-    DONE = "done",
+    ACTIVE = "ACTIVE",
+    DONE = "DONE",
 }
+
+
+
+type HTMLElementID = string;
+
+
+
+interface Project {
+    title: string;
+    description: string;
+    people: number;
+}
+
 
 const Autobind = (_: any, _2: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
@@ -16,16 +29,36 @@ const Autobind = (_: any, _2: string, descriptor: PropertyDescriptor) => {
 }
 
 
-type HTMLElementID = string;
+class ProjectState {
+    private projects: Project[] = [];
+    private static instance: ProjectState;
 
-interface Project {
-    title: string;
-    description: string;
-    people: number;
+    private constructor() {}
+
+    static getInstance() {
+        if (!this.instance){
+            this.instance = new ProjectState();
+        }
+        return this.instance;
+    }
+
+    addProject(project: Project) {
+        const newProject = {
+            id: Math.random.toString(),
+            ...project
+        }
+
+        this.projects.push(newProject);
+    }
+
+    getProjects() {
+        return this.projects;
+    }
+
 }
 
-
  abstract class BaseTemplateElement {
+     
     protected hostElement: HTMLElement;
     protected templateElement: HTMLElement;
 
@@ -58,6 +91,9 @@ class App {
 
     public render(){
         // Render to the DOM.
+        // for (let i=0; i < this.elements.length; i++) {
+        //     this.elements[i].renderElement();
+        // }
         this.elements.forEach( element => element.renderElement());
     }
 
@@ -110,12 +146,14 @@ class ProjectInputElement extends BaseTemplateElement {
     }
 
     renderElement() {
+        console.log(this.projectInputFormElement);
+
         this.projectInputFormElement.id = 'user-input';
         this.hostElement.insertAdjacentElement('afterbegin',  this.projectInputFormElement);
     }
 
     private init() {
-       this.hostElement.addEventListener('submit', this.submitHandler);
+        this.projectInputFormElement.addEventListener('submit', this.submitHandler);
     }
 
 }
@@ -138,9 +176,15 @@ class ProjectListElement extends BaseTemplateElement {
     }
 
     renderElement() {
+        console.log(this.projectListElement);
         // Append the cloned template content into the host element.
-        this.projectListElement.id = `${this.listType}-projects`;
+        this.projectListElement.id = `${this.listType.toLocaleLowerCase()}-projects`;
         this.hostElement.insertAdjacentElement('beforeend', this.projectListElement);
+
+       this.projectListElement.querySelector('ul')!.id = `${this.listType.toLocaleLowerCase()}-projects-list`;
+       this.projectListElement.querySelector('h2')!.textContent = this.listType + ' projects';
+
+
     }
 
 }
