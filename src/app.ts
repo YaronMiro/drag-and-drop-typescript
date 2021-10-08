@@ -16,6 +16,14 @@ interface Project {
     people: number;
 }
 
+interface AppInterface {
+    render(): void
+}
+
+interface InjectProjectStateInterface {
+    projectState: ProjectState
+}
+
 
 const Autobind = (_: any, _2: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
@@ -28,6 +36,10 @@ const Autobind = (_: any, _2: string, descriptor: PropertyDescriptor) => {
     return adjDescriptor;
 }
 
+
+const InjectProjectState = (constructor: Function) => {
+    constructor.prototype.projectState = ProjectState.getInstance();
+}
 
 class ProjectState {
     private projects: Project[] = [];
@@ -43,8 +55,9 @@ class ProjectState {
     }
 
     addProject(project: Project) {
+
         const newProject = {
-            id: Math.random.toString(),
+            id: '_' + Math.random().toString(36).substr(2, 9),
             ...project
         }
 
@@ -75,7 +88,7 @@ class ProjectState {
         // Verify we have the target "host" element.
         const hostElement = document.getElementById(hostElementID);
         if (!hostElement) {
-            throw new Error(`Host element ${hostElement} ID does not exists on DOM!`);
+            throw new Error(`Host element ${hostElementID} ID does not exists on DOM!`);
         }
         
         this.hostElement = hostElement;
@@ -85,27 +98,26 @@ class ProjectState {
 }
 
 
-class App {
+class App implements AppInterface {
 
     constructor(private elements: BaseTemplateElement[] ){}
 
     public render(){
-        // Render to the DOM.
-        // for (let i=0; i < this.elements.length; i++) {
-        //     this.elements[i].renderElement();
-        // }
         this.elements.forEach( element => element.renderElement());
     }
 
 }
 
 
+@InjectProjectState
+// interface ProjectInputElement extends InjectProjectStateInterface;
 class ProjectInputElement extends BaseTemplateElement {
     
     private projectInputFormElement: HTMLFormElement;
     private titleInputElement: HTMLInputElement;
     private descriptionInputElement: HTMLInputElement;
     private peopleInputElement: HTMLInputElement;
+    declare private projectState: ProjectState;
 
     private projectInputData: Project = {
         title: '',
@@ -142,12 +154,13 @@ class ProjectInputElement extends BaseTemplateElement {
             people: +this.peopleInputElement.value,
         };
 
+        this.projectState.addProject(this.projectInputData);
+
         console.log(this.projectInputData);
+        console.log(this.projectState.getProjects());
     }
 
     renderElement() {
-        console.log(this.projectInputFormElement);
-
         this.projectInputFormElement.id = 'user-input';
         this.hostElement.insertAdjacentElement('afterbegin',  this.projectInputFormElement);
     }
@@ -176,7 +189,6 @@ class ProjectListElement extends BaseTemplateElement {
     }
 
     renderElement() {
-        console.log(this.projectListElement);
         // Append the cloned template content into the host element.
         this.projectListElement.id = `${this.listType.toLocaleLowerCase()}-projects`;
         this.hostElement.insertAdjacentElement('beforeend', this.projectListElement);
