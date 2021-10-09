@@ -4,10 +4,7 @@ enum ProjectStatus {
     DONE = "DONE",
 }
 
-
-
 type HTMLElementID = string;
-
 
 
 interface Project {
@@ -16,6 +13,8 @@ interface Project {
     people: number;
 }
 
+type ProjectListenerFunction = (projects: Project[]) => void;
+
 interface AppInterface {
     render(): void
 }
@@ -23,7 +22,6 @@ interface AppInterface {
 interface InjectProjectStateInterface {
     projectState: ProjectState
 }
-
 
 const Autobind = (_: any, _2: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
@@ -37,11 +35,14 @@ const Autobind = (_: any, _2: string, descriptor: PropertyDescriptor) => {
 }
 
 
-const InjectProjectState = (constructor: Function) => {
-    constructor.prototype.projectState = ProjectState.getInstance();
-}
+const InjectProjectState = (projectStateProp = 'projectState') => (
+    (constructor: Function) => {
+        constructor.prototype[projectStateProp] = ProjectState.getInstance();
+    }
+)
 
 class ProjectState {
+    private listeners: ProjectListenerFunction[] = [];
     private projects: Project[] = [];
     private static instance: ProjectState;
 
@@ -54,18 +55,26 @@ class ProjectState {
         return this.instance;
     }
 
+    addListener(listenerFunction: ProjectListenerFunction){
+        this.listeners.push(listenerFunction);
+    }
+
     addProject(project: Project) {
 
         const newProject = {
-            id: '_' + Math.random().toString(36).substr(2, 9),
+            id: '_' + Math.random().toString(36).substr(2, 9), 
             ...project
         }
 
         this.projects.push(newProject);
+        this.listeners.forEach(listener => listener(this.getProjects()) );
+        console.log('projects from state', this.projects);
+
     }
 
-    getProjects() {
-        return this.projects;
+    private getProjects() {
+        // Always return a new Array with am immutable Project object.
+        return this.projects.map( project => Object.freeze(project) );
     }
 
 }
@@ -109,7 +118,7 @@ class App implements AppInterface {
 }
 
 
-@InjectProjectState
+@InjectProjectState()
 // interface ProjectInputElement extends InjectProjectStateInterface;
 class ProjectInputElement extends BaseTemplateElement {
     
@@ -126,7 +135,6 @@ class ProjectInputElement extends BaseTemplateElement {
     }
 
     constructor(templateElementID: HTMLElementID, hostElementID: HTMLElementID){
-
         // Run Parent logic;
         super(templateElementID, hostElementID);
 
@@ -136,8 +144,13 @@ class ProjectInputElement extends BaseTemplateElement {
         this.titleInputElement = <HTMLInputElement> this.projectInputFormElement.querySelector('#title');
         this.descriptionInputElement = <HTMLInputElement> this.projectInputFormElement.querySelector('#description');
         this.peopleInputElement = <HTMLInputElement> this.projectInputFormElement.querySelector('#people');
-        
-        this.init();
+        this.projectInputFormElement.addEventListener('submit', this.submitHandler);
+    }
+
+    private cleanForm() {
+        this.titleInputElement.value = "";
+        this.descriptionInputElement.value = "";
+        this.peopleInputElement.value = "";
     }
 
     @Autobind
@@ -155,9 +168,7 @@ class ProjectInputElement extends BaseTemplateElement {
         };
 
         this.projectState.addProject(this.projectInputData);
-
-        console.log(this.projectInputData);
-        console.log(this.projectState.getProjects());
+        this.cleanForm();
     }
 
     renderElement() {
@@ -165,16 +176,15 @@ class ProjectInputElement extends BaseTemplateElement {
         this.hostElement.insertAdjacentElement('afterbegin',  this.projectInputFormElement);
     }
 
-    private init() {
-        this.projectInputFormElement.addEventListener('submit', this.submitHandler);
-    }
-
 }
 
+@InjectProjectState()
 class ProjectListElement extends BaseTemplateElement {
     
     projectListElement: HTMLElement;
     private listType: ProjectStatus;
+    projects: Project[] = [] 
+    declare private projectState: ProjectState;
 
     constructor(
         templateElementID: HTMLElementID, hostElementID: HTMLElementID, listType: ProjectStatus){
@@ -186,17 +196,24 @@ class ProjectListElement extends BaseTemplateElement {
         this.projectListElement = <HTMLFormElement>this.templateElement;
         this.listType = listType;
 
+        // Register a "listener" callback function that gets the most updated project State
+        this.projectState.addListener(this.projectsStateListener);
+
+    }
+
+    @Autobind
+    projectsStateListener(projects: Project[]) {
+        this.projects = projects.reverse();
+        this.renderElement();
+        console.log('projects list', this.projects);
     }
 
     renderElement() {
         // Append the cloned template content into the host element.
         this.projectListElement.id = `${this.listType.toLocaleLowerCase()}-projects`;
         this.hostElement.insertAdjacentElement('beforeend', this.projectListElement);
-
-       this.projectListElement.querySelector('ul')!.id = `${this.listType.toLocaleLowerCase()}-projects-list`;
-       this.projectListElement.querySelector('h2')!.textContent = this.listType + ' projects';
-
-
+        this.projectListElement.querySelector('ul')!.id = `${this.listType.toLocaleLowerCase()}-projects-list`;
+        this.projectListElement.querySelector('h2')!.textContent = this.listType + ' projects';
     }
 
 }
@@ -204,7 +221,7 @@ class ProjectListElement extends BaseTemplateElement {
 const app = new App([
     new ProjectInputElement('project-input','app'),
     new ProjectListElement('project-list','app', ProjectStatus.ACTIVE),
-    new ProjectListElement('project-list','app', ProjectStatus.DONE),
+    // new ProjectListElement('project-list','app', ProjectStatus.DONE),
 ]);
 
 app.render();
