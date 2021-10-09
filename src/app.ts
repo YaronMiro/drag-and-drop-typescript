@@ -17,7 +17,7 @@ class Project {
     ) {}
 }
 
-type ProjectListenerFunction = (projects: Project[]) => void;
+type ProjectListenerFunction<T> = (projects: T[]) => void;
 
 interface AppInterface {
     render(): void
@@ -45,26 +45,28 @@ const InjectProjectState = (projectStateProp = 'projectState') => (
     }
 )
 
-class State {
-    
+
+class State<T> {
+    protected listeners: ProjectListenerFunction<T>[] = [];
+
+    addListener(listenerFunction: ProjectListenerFunction<T>){
+        this.listeners.push(listenerFunction);
+    }
 }
 
-class ProjectState {
-    private listeners: ProjectListenerFunction[] = [];
-    private projects: Project[] = [];
-    private static instance: ProjectState;
+class ProjectState extends State<Project> {
+    protected projects: Project[] = [];
+    protected static instance: ProjectState;
 
-    private constructor() {}
+    private constructor() {
+        super();
+    }
 
     static getInstance() {
         if (!this.instance){
             this.instance = new ProjectState();
         }
         return this.instance;
-    }
-
-    addListener(listenerFunction: ProjectListenerFunction){
-        this.listeners.push(listenerFunction);
     }
 
     addProject(project: Project) {
@@ -123,8 +125,7 @@ class App implements AppInterface {
 
 
 @InjectProjectState()
-// interface ProjectInputElement extends InjectProjectStateInterface;
-class ProjectInputElement extends Component {
+class ProjectInputComponent extends Component {
     
     private projectInputFormElement: HTMLFormElement;
     private titleInputElement: HTMLInputElement;
@@ -179,7 +180,7 @@ class ProjectInputElement extends Component {
 }
 
 @InjectProjectState()
-class ProjectListElement extends Component {
+class ProjectListComponent extends Component {
     
     projectListSectionElement: HTMLElement;
     projectListElement!: HTMLUListElement;
@@ -232,9 +233,9 @@ class ProjectListElement extends Component {
 }
 
 const app = new App([
-    new ProjectInputElement('project-input','app'),
-    new ProjectListElement('project-list','app', ProjectStatus.ACTIVE),
-    new ProjectListElement('project-list','app', ProjectStatus.DONE),
+    new ProjectInputComponent('project-input','app'),
+    new ProjectListComponent('project-list','app', ProjectStatus.ACTIVE),
+    new ProjectListComponent('project-list','app', ProjectStatus.DONE),
 ]);
 
 app.render();
