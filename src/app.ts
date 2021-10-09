@@ -7,10 +7,14 @@ enum ProjectStatus {
 type HTMLElementID = string;
 
 
-interface Project {
-    title: string;
-    description: string;
-    people: number;
+class Project {
+    constructor (
+        public id: string,
+        public title: string,
+        public description: string,
+        public people: number,
+        public status: ProjectStatus,
+    ) {}
 }
 
 type ProjectListenerFunction = (projects: Project[]) => void;
@@ -41,6 +45,10 @@ const InjectProjectState = (projectStateProp = 'projectState') => (
     }
 )
 
+class State {
+    
+}
+
 class ProjectState {
     private listeners: ProjectListenerFunction[] = [];
     private projects: Project[] = [];
@@ -60,16 +68,10 @@ class ProjectState {
     }
 
     addProject(project: Project) {
-
-        const newProject = {
-            id: '_' + Math.random().toString(36).substr(2, 9), 
-            ...project
+        this.projects.push(project);
+        for (const listener of this.listeners) {
+            listener(this.getProjects());
         }
-
-        this.projects.push(newProject);
-        this.listeners.forEach(listener => listener(this.getProjects()) );
-        console.log('projects from state', this.projects);
-
     }
 
     private getProjects() {
@@ -79,7 +81,7 @@ class ProjectState {
 
 }
 
- abstract class BaseTemplateElement {
+ abstract class Component {
      
     protected hostElement: HTMLElement;
     protected templateElement: HTMLElement;
@@ -109,10 +111,12 @@ class ProjectState {
 
 class App implements AppInterface {
 
-    constructor(private elements: BaseTemplateElement[] ){}
+    constructor(private elements: Component[] ){}
 
     public render(){
-        this.elements.forEach( element => element.renderElement());
+        for (const element of this.elements) {
+            element.renderElement();
+        }
     }
 
 }
@@ -120,19 +124,13 @@ class App implements AppInterface {
 
 @InjectProjectState()
 // interface ProjectInputElement extends InjectProjectStateInterface;
-class ProjectInputElement extends BaseTemplateElement {
+class ProjectInputElement extends Component {
     
     private projectInputFormElement: HTMLFormElement;
     private titleInputElement: HTMLInputElement;
     private descriptionInputElement: HTMLInputElement;
     private peopleInputElement: HTMLInputElement;
     declare private projectState: ProjectState;
-
-    private projectInputData: Project = {
-        title: '',
-        description: '',
-        people: 0,
-    }
 
     constructor(templateElementID: HTMLElementID, hostElementID: HTMLElementID){
         // Run Parent logic;
@@ -160,14 +158,16 @@ class ProjectInputElement extends BaseTemplateElement {
     }
 
     private getProjectInputData() {
+        this.projectState.addProject(
+            new Project(
+                '_' + Math.random().toString(36).substr(2, 9), 
+                this.titleInputElement.value,
+                this.descriptionInputElement.value,
+                +this.peopleInputElement.value,
+                ProjectStatus.ACTIVE
+            )
+        );
 
-        this.projectInputData = {
-            title: this.titleInputElement.value,
-            description: this.descriptionInputElement.value,
-            people: +this.peopleInputElement.value,
-        };
-
-        this.projectState.addProject(this.projectInputData);
         this.cleanForm();
     }
 
@@ -179,9 +179,10 @@ class ProjectInputElement extends BaseTemplateElement {
 }
 
 @InjectProjectState()
-class ProjectListElement extends BaseTemplateElement {
+class ProjectListElement extends Component {
     
-    projectListElement: HTMLElement;
+    projectListSectionElement: HTMLElement;
+    projectListElement!: HTMLUListElement;
     private listType: ProjectStatus;
     projects: Project[] = [] 
     declare private projectState: ProjectState;
@@ -193,9 +194,9 @@ class ProjectListElement extends BaseTemplateElement {
         super(templateElementID, hostElementID);
 
         // Get the template element content.
-        this.projectListElement = <HTMLFormElement>this.templateElement;
+        this.projectListSectionElement = <HTMLElement>this.templateElement;
         this.listType = listType;
-
+        
         // Register a "listener" callback function that gets the most updated project State
         this.projectState.addListener(this.projectsStateListener);
 
@@ -203,17 +204,29 @@ class ProjectListElement extends BaseTemplateElement {
 
     @Autobind
     projectsStateListener(projects: Project[]) {
-        this.projects = projects.reverse();
-        this.renderElement();
-        console.log('projects list', this.projects);
+        this.projects = projects.filter(project => project.status === this.listType);
+        this.renderProjects();
+    }
+
+    private renderProjects() {
+        const listElement = <HTMLUListElement> document.getElementById(this.projectListElement.id);
+        console.log(this.projects);
+        console.log(this.projects.length);
+        listElement.innerHTML = "";
+        for (const project of this.projects) {
+            const listItemElement = document.createElement('li');
+            listItemElement.textContent = project.title;
+            listElement.appendChild(listItemElement);
+        }
     }
 
     renderElement() {
         // Append the cloned template content into the host element.
-        this.projectListElement.id = `${this.listType.toLocaleLowerCase()}-projects`;
-        this.hostElement.insertAdjacentElement('beforeend', this.projectListElement);
-        this.projectListElement.querySelector('ul')!.id = `${this.listType.toLocaleLowerCase()}-projects-list`;
-        this.projectListElement.querySelector('h2')!.textContent = this.listType + ' projects';
+        this.projectListSectionElement.id = `${this.listType.toLocaleLowerCase()}-projects`;
+        this.hostElement.insertAdjacentElement('beforeend', this.projectListSectionElement);
+        this.projectListElement = this.projectListSectionElement.querySelector('ul')!;
+        this.projectListElement.id = `${this.listType.toLocaleLowerCase()}-projects-list`;
+        this.projectListSectionElement.querySelector('h2')!.textContent = this.listType + ' projects';
     }
 
 }
@@ -221,7 +234,7 @@ class ProjectListElement extends BaseTemplateElement {
 const app = new App([
     new ProjectInputElement('project-input','app'),
     new ProjectListElement('project-list','app', ProjectStatus.ACTIVE),
-    // new ProjectListElement('project-list','app', ProjectStatus.DONE),
+    new ProjectListElement('project-list','app', ProjectStatus.DONE),
 ]);
 
 app.render();
