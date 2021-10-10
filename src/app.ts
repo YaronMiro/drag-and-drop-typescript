@@ -4,28 +4,7 @@ enum ProjectStatus {
     DONE = "DONE",
 }
 
-interface ValidatorConfig {
-    [entity: string]: {
-      [targetPropToValidate: string]: Validations[]
-    }
-  }
-
-enum Validations {
-    Required = "Required",
-    Positive = "Positive"
-}
-
 type HTMLElementID = string;
-
-class Project {
-    constructor (
-        public id: string,
-        public title: string,
-        public description: string,
-        public people: number,
-        public status: ProjectStatus,
-    ) {}
-}
 
 type ProjectListenerFunction<T> = (projects: T[]) => void;
 
@@ -36,6 +15,20 @@ interface AppInterface {
 interface InjectProjectStateInterface {
     projectState: ProjectState
 }
+
+type DragHandlerFunction = (event: DragEvent) => void;
+
+interface Draggable {
+    dragStartHandler: DragHandlerFunction;
+    dragEndHandler: DragHandlerFunction;
+}
+
+interface DragTarget {
+    dragOverHandler: DragHandlerFunction;
+    dropHandler: DragHandlerFunction;
+    dragLeaveHandler: DragHandlerFunction;
+}
+
 
 const Autobind = (_: any, _2: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value;
@@ -55,6 +48,16 @@ const InjectProjectState = (projectStateProp = 'projectState') => (
     }
 )
 
+
+class Project {
+    constructor (
+        public id: string,
+        public title: string,
+        public description: string,
+        public people: number,
+        public status: ProjectStatus,
+    ) {}
+}
 
 class State<T> {
     protected listeners: ProjectListenerFunction<T>[] = [];
@@ -204,7 +207,7 @@ class ProjectInputComponent extends Component {
 }
 
 @InjectProjectState()
-class ProjectListComponent extends Component {
+class ProjectListComponent extends Component implements DragTarget {
     
     private listElement: HTMLUListElement;
     private listType: ProjectStatus;
@@ -229,6 +232,10 @@ class ProjectListComponent extends Component {
         
         // Register a "listener" callback function that gets the most updated project State
         this.projectState.addListener(this.projectsStateListener);
+
+        this.element.addEventListener('dragover',this.dragOverHandler);
+        this.element.addEventListener('dragleave',this.dragLeaveHandler);
+        this.element.addEventListener('drop',this.dropHandler);
     }
 
     @Autobind
@@ -247,6 +254,23 @@ class ProjectListComponent extends Component {
         }
     }
 
+    @Autobind
+    dragOverHandler(event: DragEvent) {
+        this.listElement.classList.add('droppable');
+        console.log('dragOverHandler',event);
+    }
+
+    @Autobind
+    dropHandler(event: DragEvent) {
+        console.log('dropHandler',event);
+    }
+
+    @Autobind
+    dragLeaveHandler(event: DragEvent) {
+        console.log('dragLeaveHandler',event);
+        this.listElement.classList.remove('droppable');
+    }
+
     render() {
         // Append the cloned template content into the host element.
         this.element.querySelector('h2')!.textContent = this.listType + ' projects';
@@ -255,10 +279,10 @@ class ProjectListComponent extends Component {
 }
 
 
-class ProjectItem extends Component {
+class ProjectItem extends Component implements Draggable {
 
     private project: Project;
-
+    
     constructor(
         templateElementID: HTMLElementID,
         hostElementID: HTMLElementID,
@@ -267,13 +291,30 @@ class ProjectItem extends Component {
         ){
         super(templateElementID, hostElementID, insertElementPosition);
         this.project = project;
+
+        this.element.addEventListener('dragstart', this.dragStartHandler);
+        this.element.addEventListener('dragend', this.dragEndHandler);
     }
 
     render(){
         this.element.querySelector('h2')!.textContent = this.project.title;
-        this.element.querySelector('h3')!.textContent = this.project.people.toString();
+        const peopleText = ((this.project.people > 1) ? 'persons': 'person') +  ' assigned';
+        this.element.querySelector('h3')!.textContent = `${this.project.people.toString()} ${peopleText}`; 
         this.element.querySelector('p')!.textContent = this.project.description;
     }
+
+    @Autobind
+    dragStartHandler(event: DragEvent) {
+        console.log(event);
+
+    }
+    
+    @Autobind
+    dragEndHandler(_: DragEvent) {
+        console.log('Drag ended!')
+    }
+
+    
 }
 
 const app = new App([
