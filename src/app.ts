@@ -84,14 +84,37 @@ class ProjectState extends State<Project> {
 
     addProject(project: Project) {
         this.projects.push(project);
+        this.runListeners();
+    }
+
+    setProjectStatus(projectID: string, newStatus: ProjectStatus){
+        const targetProject = this.projects.find(project => project.id === projectID);
+
+        if (!targetProject) {
+            return;
+        }
+        console.log(targetProject)
+        console.log(newStatus)
+
+        // Assign new Status,
+        targetProject.status = newStatus;
+        this.runListeners();
+    }
+
+    private runListeners(){
         for (const listener of this.listeners) {
             listener(this.getProjects());
         }
     }
 
+    moveProject(projectID: string, newStatus: ProjectStatus) {
+        this.setProjectStatus(projectID, newStatus);
+    }
+
     private getProjects() {
         // Always return a new Array with am immutable Project object.
-        return this.projects.map( project => Object.freeze(project) );
+        // return this.projects.map( project => Object.freeze(project) );
+        return this.projects;
     }
 
 }
@@ -256,18 +279,26 @@ class ProjectListComponent extends Component implements DragTarget {
 
     @Autobind
     dragOverHandler(event: DragEvent) {
+
+        // Exit early in case we are dropping non relevant data type.
+        if(event.dataTransfer && !(event.dataTransfer.types[0] === 'text/plain') ){
+            return;
+        }
+
+        // This will allow to drop.
+        event.preventDefault()
+
         this.listElement.classList.add('droppable');
-        console.log('dragOverHandler',event);
     }
 
     @Autobind
     dropHandler(event: DragEvent) {
-        console.log('dropHandler',event);
+        const projectID = event.dataTransfer!.getData('text/plain');
+        this.projectState.moveProject(projectID, this.listType);
     }
 
     @Autobind
-    dragLeaveHandler(event: DragEvent) {
-        console.log('dragLeaveHandler',event);
+    dragLeaveHandler(_: DragEvent) {
         this.listElement.classList.remove('droppable');
     }
 
@@ -305,8 +336,8 @@ class ProjectItem extends Component implements Draggable {
 
     @Autobind
     dragStartHandler(event: DragEvent) {
-        console.log(event);
-
+        event.dataTransfer!.setData('text/plain', this.project.id);
+        event.dataTransfer!.effectAllowed = 'move';
     }
     
     @Autobind
