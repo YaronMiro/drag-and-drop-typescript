@@ -89,12 +89,10 @@ class ProjectState extends State<Project> {
 
     setProjectStatus(projectID: string, newStatus: ProjectStatus){
         const targetProject = this.projects.find(project => project.id === projectID);
-
-        if (!targetProject) {
+        
+        if (!targetProject || targetProject.status === newStatus) {
             return;
         }
-        console.log(targetProject)
-        console.log(newStatus)
 
         // Assign new Status,
         targetProject.status = newStatus;
@@ -113,8 +111,7 @@ class ProjectState extends State<Project> {
 
     private getProjects() {
         // Always return a new Array with am immutable Project object.
-        // return this.projects.map( project => Object.freeze(project) );
-        return this.projects;
+        return this.projects.map(project => Object.freeze({...project}));
     }
 
 }
